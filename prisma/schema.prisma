@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite for development - switch to postgresql for production
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+  // For PostgreSQL:
+  // provider = "postgresql"
+  // url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  avatar        String?
+  bio           String?
+  role          String    @default("USER") // USER, ADMIN, MODERATOR
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  listings         Listing[]
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+  reviewsGiven     Review[]   @relation("ReviewsGiven")
+  reviewsReceived  Review[]   @relation("ReviewsReceived")
+  reports          Report[]
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  price       Float
+  category    String   // ELECTRONICS, CLOTHING, FURNITURE, VEHICLES, BOOKS, SPORTS, HOME, OTHER
+  location    String
+  condition   String   // NEW, LIKE_NEW, GOOD, FAIR, POOR
+  status      String   @default("AVAILABLE") // AVAILABLE, SOLD, RESERVED
+  images      String   // JSON array stored as string for SQLite
+  sellerId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seller   User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+  reviews  Review[]
+  reports  Report[]
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  senderId   String
+  receiverId String
+  listingId  String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int      // 1-5
+  comment    String?
+  reviewerId String
+  revieweeId String
+  listingId  String?
+  createdAt  DateTime @default(now())
+
+  reviewer User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reason     String
+  reporterId String
+  listingId  String
+  status     String   @default("PENDING") // PENDING, REVIEWED, RESOLVED
+  createdAt  DateTime @default(now())
+
+  reporter User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
